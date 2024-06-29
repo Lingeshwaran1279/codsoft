@@ -1,0 +1,87 @@
+import numpy as np 
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import nltk
+from nltk.corpus import stopwords
+from sklearn.feature_extraction.text import TfidfVectorizer
+import re
+from sklearn.linear_model import LogisticRegression
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.metrics import accuracy_score, classification_report
+
+# Load data
+def load_data(path):
+    # read data from .txt file and assign names to columns
+    data = pd.read_csv(path, sep=":::", names=["ID", "Title", "Genre", "Plot"], engine="python")
+    # We aren't gonna need ID, so drop this column
+    data.drop(columns=["ID"], inplace=True)
+    return data
+
+df = load_data("train_data.txt")
+df.head()
+vectorizer = TfidfVectorizer()
+vectorizer.get_stop_words()
+
+# Let's try seeing the tokens fetting only few plots 
+
+plot = df['Plot'][0:2] # get first plot
+type(plot)
+
+tokens = vectorizer.fit_transform(plot)
+
+
+# Let's see the stopwords vailable in nltk.corpus
+stop_words = nltk.corpus.stopwords.words('english')
+print(stop_words)
+
+def clean_plot(plot):
+    # first lowercase all words
+    plot = plot.lower()
+    # omit numbers, symbols, and all, except alphabets
+    plot = re.sub(r'[^a-zA-Z\s]+', '', plot).strip()
+    # remove the stopwords
+    stop_words = set(stopwords.words('english'))  # You need to define stopwords
+    plot = [word for word in plot.split() if word.lower() not in stop_words]
+    plot = ' '.join(plot)
+    # return clean plot
+    return plot
+
+# Clean all the plots and the clean plot to the data frame
+df['Clean Plot'] = df['Plot'].apply(clean_plot)
+df.head()
+
+# Let's again start with TF-IDF vectorizer
+vectorizer = TfidfVectorizer()
+
+
+# Learn vocabulary and idf, return document-term matrix
+X_train = vectorizer.fit_transform(df['Clean Plot']) 
+
+y_train = df['Genre']
+print(y_train.shape)
+print(y_train)
+
+test_data = load_data("test_data_solution.txt")
+
+test_data.head()
+
+test_data['Clean Plot'] = test_data['Plot'].apply(clean_plot)
+test_data.head()
+
+# Transform the test data
+X_test = vectorizer.transform(test_data['Clean Plot'])
+print(X_test.shape)
+
+
+y_test = test_data['Genre']
+model = MultinomialNB()
+model.fit(X_train, y_train)
+
+# Let's test the model with test data 
+y_pred = model.predict(X_test)
+
+accuracy = accuracy_score(y_test, y_pred)
+print(f"Accuracy = {(accuracy*100):.2f}%")
+
+print(classification_report(y_test, y_pred,  zero_division=1))
